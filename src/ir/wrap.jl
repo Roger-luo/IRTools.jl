@@ -85,7 +85,7 @@ end
 # TODO more informative names, while avoiding clashes.
 slotname(ci, s) = Symbol(:_, s.id)
 
-function IR(ci::CodeInfo, nargs::Integer; meta = nothing)
+function IR(ci::CodeInfo, nargs::Integer; meta = nothing, preserve_type::Bool = false)
   bs = blockstarts(ci)
   ir = IR(Core.LineInfoNode[ci.linetable...], meta = meta)
   _rename = Dict()
@@ -95,7 +95,7 @@ function IR(ci::CodeInfo, nargs::Integer; meta = nothing)
     return x
   end
   for i = 1:nargs
-    _rename[Core.SlotNumber(i)] = argument!(ir)
+    _rename[Core.SlotNumber(i)] = argument!(ir; type = preserve_type && ci.slottypes !== nothing ? ci.slottypes[i] : Any)
   end
   for i = 1:length(ci.code)
     i in bs && block!(ir)
@@ -112,7 +112,7 @@ function IR(ci::CodeInfo, nargs::Integer; meta = nothing)
     elseif isexpr(ex, :return)
       return!(ir, rename(ex.args[1]))
     else
-      _rename[Core.SSAValue(i)] = push!(ir, IRTools.stmt(rename(ex), line = ci.codelocs[i]))
+      _rename[Core.SSAValue(i)] = push!(ir, IRTools.stmt(rename(ex), line = ci.codelocs[i], type = preserve_type && ci.ssavaluetypes !== nothing ? ci.ssavaluetypes[i] : Any))
     end
   end
   return ir
